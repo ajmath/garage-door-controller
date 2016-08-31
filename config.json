@@ -3,7 +3,8 @@
 {
 	"use_auth":false,
 	"use_alerts":false,
-	"use_openhab":false
+	"use_openhab":false,
+	"use_smartthings":true
 },
 "alerts":
 {
