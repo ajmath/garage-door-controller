@@ -2,8 +2,8 @@
 "config":
 {
 	"use_auth":false,
-	"use_alerts":true,
-	"use_openhab":true
+	"use_alerts":false,
+	"use_openhab":false
 },
 "alerts":
 {
@@ -30,24 +30,24 @@
 },
 "site" :
 	{
-	"port":8081,
+	"port":80,
 	"username":"user",
 	"password":"12345"
 	},
-"doors" : 
+"doors" :
 	{
-		"left" : 
+		"left" :
 			{
-			"name" : "Sarah",
+			"name" : "CRV",
 			"relay_pin" : 23,
 			"state_pin" : 17,
 			"approx_time_to_close" : 10,
 			"approx_time_to_open" : 13,
 			"openhab_name" : "g_door_left"
 			},
-		"right" : 
+		"right" :
 			{
-			"name" : "Lior",
+			"name" : "Sienna",
 			"relay_pin" : 24,
 			"state_pin" : 27,
 			"approx_time_to_close" : 10,
