@@ -1,59 +1,50 @@
 {
-"config":
-{
-	"use_auth":false,
-	"use_alerts":false,
-	"use_openhab":false,
-	"use_smartthings":true
-},
-"alerts":
-{
-	"time_to_wait" : 10,
-	"alert_type" : "<smtp OR pushbullet",
-	"smtp":
-		{
-		"smtphost" : "<SMTP HOST>",
-		"smtpport" : 587,
-		"smtp_tls" : "True",
-		"username" : "<USERNAME EMAIL ADDRESS>",
-		"password" : "<PASSWORD>",
-		"to_email" : "<TO EMAIL ADDRESS>"
-		},
-	"pushbullet":
-		{
-		"access_token":"<PUSHBULLET ACCESS TOKEN>"
-		}
-},
-"openhab" :
-{
-	"server" : "<SERVER_IP_ADDRESS>",
-	"port" : "<OPENHAB_SERVER_PORT>"
-},
-"site" :
-	{
-	"port":80,
-	"username":"user",
-	"password":"12345"
-	},
-"doors" :
-	{
-		"left" :
-			{
-			"name" : "CRV",
-			"relay_pin" : 23,
-			"state_pin" : 17,
-			"approx_time_to_close" : 10,
-			"approx_time_to_open" : 13,
-			"openhab_name" : "g_door_left"
-			},
-		"right" :
-			{
-			"name" : "Sienna",
-			"relay_pin" : 24,
-			"state_pin" : 27,
-			"approx_time_to_close" : 10,
-			"approx_time_to_open" : 13,
-			"openhab_name" : "g_door_right"
-			}
-	}
+   "config" : {
+      "use_alerts" : false,
+      "use_auth" : false,
+      "use_openhab" : false,
+      "use_smartthings" : true
+   },
+   "openhab" : {
+      "server" : "<SERVER_IP_ADDRESS>",
+      "port" : "<OPENHAB_SERVER_PORT>"
+   },
+   "doors" : {
+      "left" : {
+         "approx_time_to_close" : 10,
+         "name" : "left",
+         "openhab_name" : "g_door_left",
+         "approx_time_to_open" : 13,
+         "relay_pin" : 23,
+         "state_pin" : 17
+      },
+      "right" : {
+         "approx_time_to_close" : 10,
+         "name" : "right",
+         "openhab_name" : "g_door_right",
+         "approx_time_to_open" : 13,
+         "state_pin" : 27,
+         "relay_pin" : 24
+      }
+   },
+   "alerts" : {
+      "smtp" : {
+         "username" : "<USERNAME EMAIL ADDRESS>",
+         "smtp_tls" : "True",
+         "smtpport" : 587,
+         "password" : "<PASSWORD>",
+         "smtphost" : "<SMTP HOST>",
+         "to_email" : "<TO EMAIL ADDRESS>"
+      },
+      "pushbullet" : {
+         "access_token" : "<PUSHBULLET ACCESS TOKEN>"
+      },
+      "time_to_wait" : 10,
+      "alert_type" : "<smtp OR pushbullet"
+   },
+   "site" : {
+      "username" : "user",
+      "port" : 80,
+      "password" : "12345"
+   }
 }

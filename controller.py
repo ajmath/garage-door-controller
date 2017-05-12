@@ -4,6 +4,7 @@ import socket
 import RPi.GPIO as gpio
 import json
 import httplib
+import os
 
 from twisted.internet import task
 from twisted.internet import reactor
@@ -93,69 +94,13 @@ class Request(BaseHTTPRequestHandler):
         self.error_code = code
         self.error_message = message
 
-
-class SSDPListener(DatagramProtocol):
-
-    ST = 'urn:schemas-upnp-org:device:andrewshilliday:garage-door-controller'
-    LOCATION_MSG = """HTTP/1.1 200 OK
-CACHE-CONTROL: max-age=100
-ST: %(library)s
-USN: doorId:%(doorId)s::%(library)s
-Location: %(loc)s
-Cache-Control: max-age=900
-"""
-
-    def __init__(self, doors, port):
-        self.doors = doors
-        self.local_ip = False
-        self.port = port
-        print "init SSDPListener"
-
-    def get_local_ip(self):
-        if not self.local_ip:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("gmail.com",80))
-            self.local_ip = s.getsockname()[0]
-            s.close()
-        return self.local_ip
-
-    def startProtocol(self):
-        self.transport.setTTL(5)
-        # Join the multicast address, so we can receive replies:
-        self.transport.joinGroup("239.255.255.250")
-        # Send to 228.0.0.5:8005 - all listeners on the multicast address
-        # (including us) will receive this message.
-        self.transport.write('Client: Ping', ("239.255.255.250", 1900))
-
-    def datagramReceived(self, data, (host, port)):
-        print "received %r from %s:%d" % (data, host, port)
-        if data == "Client: Ping":
-            self.transport.write("Server: Pong", (host, port))
-            return
-
-        request = Request(data)
-        if request.error_code or \
-                request.command != 'M-SEARCH' or \
-                request.path != '*' or \
-                request.headers['MAN'] != "\"ssdp:discover\"" or \
-                request.headers['ST'] != SSDPListener.ST:
-            return # this is not the request you're looking for
-
-        for doorId in self.doors:
-            msg = SSDPListener.LOCATION_MSG % dict(
-                doorId=doorId,\
-                loc="http://{0}:{1}".format(self.get_local_ip(), self.port),\
-                library=SSDPListener.ST)
-            print "Responding with " + msg
-            self.transport.write(msg, (host, port))
-
-
 class Controller():
-    def __init__(self, config):
+    def __init__(self, config, subscriptions):
         gpio.setwarnings(False)
         gpio.cleanup()
         gpio.setmode(gpio.BCM)
         self.config = config
+        self.subscriptions = subscriptions
         self.doors = [Door(n,c) for (n,c) in config['doors'].items()]
         self.updateHandler = UpdateHandler(self)
         for door in self.doors:
@@ -188,6 +133,8 @@ class Controller():
                 self.updateHandler.handle_updates()
                 if self.config['config']['use_openhab'] and (new_state == "open" or new_state == "closed"):
                     self.update_openhab(door.openhab_name, new_state)
+                if hasattr(self, "subscribe_handler") and (new_state == "open" or new_state == "closed"):
+                    self.subscribe_handler.send_subscriptions(door.name)
             if new_state == 'open' and not door.msg_sent and time.time() - door.open_time >= self.ttw:
                 if self.use_alerts:
                     title = "%s's garage door open" % door.name
@@ -258,6 +205,12 @@ class Controller():
                 d.toggle_relay()
                 return
 
+    def get_clean_updates(self):
+        updates = {}
+        for d in self.doors:
+            updates[d.id] = d.last_state
+        return updates
+
     def get_updates(self, lastupdate):
         updates = []
         for d in self.doors:
@@ -270,6 +223,7 @@ class Controller():
         root = File('www')
         root.putChild('upd', self.updateHandler)
         root.putChild('cfg', ConfigHandler(self))
+        root.putChild('status', StatusHandler(self))
 
         if self.config['config']['use_auth']:
             clk = ClickHandler(self)
@@ -282,10 +236,14 @@ class Controller():
             root.putChild('clk', protected_resource)
         else:
             root.putChild('clk', ClickHandler(self))
+
+        if self.config['config']['use_smartthings']:
+            self.subscribe_handler = SubscribeHandler(self)
+            root.putChild('subscribe', self.subscribe_handler)
+
         site = server.Site(root)
         reactor.listenTCP(self.config['site']['port'], site)  # @UndefinedVariable
-        if self.config['config']['use_smartthings']:
-            reactor.listenMulticast(1900, SSDPListener(self.config['doors'], self.config['site']['port']), listenMultiple=True)
+
         reactor.run()  # @UndefinedVariable
 
 class ClickHandler(Resource):
@@ -298,7 +256,62 @@ class ClickHandler(Resource):
     def render(self, request):
         door = request.args['id'][0]
         self.controller.toggle(door)
-        return 'OK'
+        request.setHeader('Content-Type', 'application/json')
+        return json.dumps({ 'response_code': 200 })
+
+class StatusHandler(Resource):
+    isLeaf = True
+    def __init__(self, controller):
+        Resource.__init__(self)
+        self.controller = controller
+
+    def render_GET(self, request):
+        door = request.args['door'][0]
+        statuses = self.controller.get_clean_updates()
+        syslog.syslog("Sending status: " + door + ":" + statuses[door])
+        request.setHeader('Content-Type', 'application/json')
+        return json.dumps({ 'status': statuses[door], 'door': door, "type": "status", })
+
+class SubscribeHandler(Resource):
+    isLeaf = True
+    def __init__(self, controller):
+        Resource.__init__(self)
+        self.controller = controller
+
+    def send_subscriptions(self, door):
+        statuses = self.controller.get_clean_updates()
+        if door in self.controller.subscriptions:
+            callback = self.controller.subscriptions[door]
+            host = callback.replace("http://", "").split('/')[0]
+            path = callback.replace("http://" + host, "")
+            conn = httplib.HTTPConnection(host)
+            syslog.syslog("Sending subscription: " + callback + " status: " + statuses[door])
+            conn.request("POST", path,
+                 json.dumps({
+                     "door": door,
+                     "type": "subscription",
+                     "status": statuses[door]
+                 }), { 'Content-Type': 'application/json' })
+            resp = conn.getresponse()
+            resp_body = resp.read()
+            syslog.syslog("subscription response: " + str(resp.status) + " " + resp_body)
+
+    def render_POST(self, request):
+        syslog.syslog("Got subscription POST with args: " + str(request.args))
+        door = request.args['door'][0]
+        callback = request.getHeader('x-callback')
+        self.controller.subscriptions[door] = callback
+        with open('subscriptions.json', 'w+') as f:
+            json.dump(self.controller.subscriptions, f)
+
+        statuses = self.controller.get_clean_updates()
+        request.setHeader('Content-Type', 'application/json')
+        if not statuses[door]:
+            request.setResponseCode(500)
+            return json.dumps({ 'error': 'Unable to find status for that door' })
+
+        request.setResponseCode(201)
+        return json.dumps({ 'status': statuses[door] })
 
 class ConfigHandler(Resource):
     isLeaf = True
@@ -399,9 +412,16 @@ def elapsed_time(seconds, suffixes=['y','w','d','h','m','s'], add_s=False, separ
 
     return separator.join(time)
 
+def load_subscriptions(config):
+    if os.path.isfile('subscriptions.json'):
+        return json.load(open('subscriptions.json'))
+    return {}
+
 if __name__ == '__main__':
     syslog.openlog('garage_controller')
     config_file = open('config.json')
-    controller = Controller(json.load(config_file))
+    config = json.load(config_file)
+    subscriptions = load_subscriptions(config)
+    controller = Controller(config, subscriptions)
     config_file.close()
     controller.run()
