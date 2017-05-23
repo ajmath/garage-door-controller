@@ -49,6 +49,7 @@ def logIt(msg) {
 }
 
 def toggle() {
+	logIt "toggle()"
 	request("/clk?id=${getDoorId()}", "GET")
 }
 
@@ -82,6 +83,7 @@ def refresh() {
 }
 
 def poll() {
+	logIt "poll()"
 	refresh()
 }
 

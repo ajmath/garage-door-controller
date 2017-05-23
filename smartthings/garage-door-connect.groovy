@@ -42,17 +42,18 @@ def logIt(msg) {
 }
 
 def installed() {
-	logIt "Installed with settings: ${settings}"
+	logIt "installed() - settings=${settings}"
 	initialize()
 }
 
 def updated() {
-	logIt "Updated with settings: ${settings}"
+	logIt "updated() - settings=${settings}"
 	unsubscribe()
 	initialize()
 }
 
 def initialize() {
+	logIt "initialize()"
 	addRPI()
 }
 
@@ -112,6 +113,7 @@ def updateDevice(status) {
 }
 
 def lanResponseHandler(evt) {
+	logIt "lanResponseHandler()"
 	def descMap = parseDescriptionAsMap(evt.value)
 	if (!descMap.containsKey("body")) {
 		logIt "lanResponse did not contain a body"
