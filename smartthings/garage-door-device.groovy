@@ -15,8 +15,6 @@
  *
  */
 
-import groovy.json.JsonSlurper
-
 metadata {
 	definition (name: "RPI Garage Door", namespace: "simianhacker", author: "Chris Cowan") {
 		capability "Contact Sensor"
@@ -105,28 +103,6 @@ def request(path, method, body = "") {
 def parse(LinkedHashMap map) {
 	logIt "parse() Got event ${map}"
 	sendEvent(name: map.name, value: map.value)
-}
-
-def parseBase64Json(String input) {
-	def sluper = new JsonSlurper();
-	sluper.parseText(new String(input.decodeBase64()))
-}
-
-def parseDescriptionAsMap(String description) {
-	description.split(',').inject([:]) { map, param ->
-		def nameAndValue = param.split(":")
-		map += [(nameAndValue[0].trim()) : (nameAndValue[1].trim())]
-	}
-}
-
-private String convertIPtoHex(ipAddress) {
-	String hex = ipAddress.tokenize( '.' ).collect {  String.format( '%02x', it.toInteger() ) }.join()
-	return hex
-}
-
-private String convertPortToHex(port) {
-	String hexport = port.toString().format( '%04x', port.toInteger() )
-	return hexport
 }
 
 private Integer convertHexToInt(hex) {
