@@ -103,6 +103,11 @@ def subscribeToDoorEvents() {
 //   }
 // }
 
+def updateDevice(status) {
+	sendEvent(getMyDevice(), [name: "door", value: status])
+	sendEvent(getMyDevice(), [name: "contact", value: status])
+	sendEvent(getMyDevice(), [name: "switch", value: status == "open" ? "on" : "off"])
+}
 
 def lanResponseHandler(evt) {
 	def descMap = parseDescriptionAsMap(evt.value)
@@ -112,15 +117,16 @@ def lanResponseHandler(evt) {
 	}
 	def body = parseBase64Json(descMap["body"])
 	if (!body.containsKey("door") || !body.containsKey("status") || !body.containsKey("type")) {
-		logIt "Ignoring invalid request"
+		if (!body.containsKey("response_code") || body.response_code != 200) {
+			logIt "Ignoring invalid request, body=${body}"
+		}
 		return
 	}
 	if (body.door != door_id) {
 		logIt "Ignoring request_type=${body.type} for other door=${body.door}"
 		return
 	}
-	logIt "Sending event: ${[name: "contact", value: body.status]}"
-	sendEvent(getMyDevice(), [name: "contact", value: body.status])
+	updateDevice(body.status)
 }
 
 def parseBase64Json(String input) {

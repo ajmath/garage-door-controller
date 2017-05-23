@@ -19,26 +19,23 @@ import groovy.json.JsonSlurper
 metadata {
 	definition (name: "RPI Garage Door", namespace: "simianhacker", author: "Chris Cowan") {
 		capability "Contact Sensor"
-		capability "Momentary"
-		command "push"
-		command "refresh"
-	}
+		capability "Garage Door Control"
+		capability "Switch"
+		capability "Refresh"
+		capability "Polling"
 
-	simulator {
-		// TODO: define status and reply messages here
-		status "open": "{ \"status\": \"open\" }"
-		status "closed": "{ \"status\": \"closed\" }"
+		command "toggle"
 	}
 
 	tiles {
 		// TODO: define your main and details tiles here
-		standardTile("contact", "device.contact", width: 2, height: 2) {
+		standardTile("contact", "device.door", width: 2, height: 2) {
 			state("open", label:'${name}', icon:"st.doors.garage.garage-open", backgroundColor:"#ffa81e", next: "closed")
 			state("closed", label:'${name}', icon:"st.doors.garage.garage-closed", backgroundColor:"#79b821", next: "open")
 		}
-		standardTile("open_close", "device.contact", inactiveLabel: false, decoration: "flat", canChangeIcon: true) {
-			state "open", action:"push", icon: "st.doors.garage.garage-closing", label: "Close", displayName: "Close"
-			state "closed", action:"push", icon: "st.doors.garage.garage-opening", label: "Open", displayName: "Open"
+		standardTile("open_close", "device.door", inactiveLabel: false, decoration: "flat", canChangeIcon: true) {
+			state "open", action:"toggle", icon: "st.doors.garage.garage-closing", label: "Close", displayName: "Close"
+			state "closed", action:"toggle", icon: "st.doors.garage.garage-opening", label: "Open", displayName: "Open"
 		}
 		standardTile("refresh", "device.refresh", inactiveLabel: false, decoration: "flat") {
 			state "default", action:"refresh", icon: "st.secondary.refresh-icon" , label: "Refresh", displayName: "Refresh"
@@ -52,13 +49,41 @@ def logIt(msg) {
 	log.debug "garage-handler-${getDoorId()}: ${msg}"
 }
 
-def push() {
+def toggle() {
 	request("/clk?id=${getDoorId()}", "GET")
+}
+
+def open() {
+	logIt "open() - door=${device.currentValue('door')}"
+	if (device.currentValue('door') == "closed") {
+		toggle()
+    }
+}
+
+def close() {
+	logIt "close() - currentDoor=${device.currentValue('door')}"
+	if (device.currentValue('door') == "open") {
+		toggle()
+	}
+}
+
+def on() {
+	logIt "on()"
+	open()
+}
+
+def off() {
+	logIt "off()"
+	close()
 }
 
 def refresh() {
 	logIt "refresh()"
 	request("/status?door=${getDoorId()}", "GET")
+}
+
+def poll() {
+	refresh()
 }
 
 def request(path, method, body = "") {
