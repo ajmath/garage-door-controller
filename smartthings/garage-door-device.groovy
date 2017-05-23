@@ -1,4 +1,5 @@
-/* RPI Garage Door
+/**
+ *  RPI Garage Door
  *
  *  Copyright 2015 Chris Cowan
  *  Copyright 2017 Andrew Matheny
