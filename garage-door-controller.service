@@ -1,0 +1,20 @@
+# Copy this to /etc/systemd/system/
+# To start immediately: systemctl start garage-door-controller
+# To run on startup: systemctl enable garage-door-controller
+# Status: systemctl status garage-door-controller
+# Logs: journalctl -f -u garage-door-controller
+
+[Unit]
+Description=Garage door controller
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+WorkingDirectory=/home/pi/garage-door-controller
+ExecStart=/usr/bin/python controller.py
+Restart=on-abort
+
+[Install]
+WantedBy=multi-user.target
