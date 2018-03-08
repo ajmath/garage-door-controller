@@ -292,9 +292,12 @@ class SubscribeHandler(Resource):
                      "type": "subscription",
                      "status": statuses[door]
                  }), { 'Content-Type': 'application/json' })
-            resp = conn.getresponse()
-            resp_body = resp.read()
-            syslog.syslog("subscription response: " + str(resp.status) + " " + resp_body)
+            try:
+                resp = conn.getresponse()
+                resp_body = resp.read()
+                syslog.syslog("subscription response: " + str(resp.status) + " " + resp_body)
+            except Error as e:
+                syslog.syslog("Error sending subscription: " + str(e))
 
     def render_POST(self, request):
         syslog.syslog("Got subscription POST with args: " + str(request.args))
